@@ -3,8 +3,7 @@ from setuptools import setup
 setup(
     name='simplechart',
     version='1.0',
-    packages=['simplechart','simplechart.backends','simplechart.charts'],
-    package_dir={'': 'src'},
+    packages=['simplechart','simplechart.backends'],
     url='',
     license='',
     author='joran',
