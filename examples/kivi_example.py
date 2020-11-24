@@ -28,7 +28,7 @@ class TestApp(App):
 
 
 def main():
-    app = TestApp()
+    app = TestApp(title="kivi example")
     app.run()
 
 

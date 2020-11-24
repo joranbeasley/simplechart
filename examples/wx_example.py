@@ -55,6 +55,7 @@ class Frame(wx.Frame):
 def main():
     app = wx.App(False)
     frame = Frame()
+    frame.SetTitle("wx example")
     frame.Show()
     app.MainLoop()
 
