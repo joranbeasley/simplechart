@@ -1,0 +1,3 @@
+- quick charting engine
+- only supports line charts
+- various backend implementations(wx/tk/kivy)
