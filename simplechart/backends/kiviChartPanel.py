@@ -30,10 +30,15 @@ def hex2rgb(hex):
 class kvChartPanel(Widget):
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22',
               '#17becf']
+    def lockX(self,minVal,maxVal):
+        self.chart.get_axis(axisId=0).lockXRange([minVal,maxVal])
+    def truncateXBefor(self,minX):
+        self.chart.clear_data_before_x(minX)
     def __init__(self, bg="#FFFFFF",margin=(40,8,15,22),colors=None,
                  fmtXTicks="%0.1f",fmtYTicks="%0.1f",**kwargs):
         self.chart = SimpleChartObject()
         self.traces = None
+        self.hidden_traces = set()
         self.bg = bg
         self.lbl = CoreLabel()
         if isinstance(fmtXTicks,(bytes,six.string_types)):
@@ -92,7 +97,7 @@ class kvChartPanel(Widget):
             self.add_widget(lbl)
         for lbl in self.Xlabels:
             self.add_widget(lbl)
-
+        self.bind(size=self.on_update,pos=self.on_update)
         self.Refresh()
         # if 'size' in kwargs:
         #     self.SetMinSize(kwargs['size'])
@@ -113,18 +118,21 @@ class kvChartPanel(Widget):
         self.canvas.before.clear()
         with self.canvas.before:
             Color(0,0,0)
-            Rectangle(pos=(0,0),size=self.size)
+            Rectangle(pos=self.pos,size=self.size)
             Color(1,1,1)
 
             # print([self._chart_area.left,self._chart_area.top],[self._chart_area.left,self._chart_area.bottom],[self._chart_area.right,self._chart_area.bottom])
-            Line(points=[self._chart_area.left,self._chart_area.top,
-                         self._chart_area.left,self._chart_area.bottom,
-                         self._chart_area.right,self._chart_area.bottom])
+            Line(points=[self._chart_area.left+self.pos[0],self._chart_area.top+self.pos[1],
+                         self._chart_area.left+self.pos[0],self._chart_area.bottom+self.pos[1],
+                         self._chart_area.right+self.pos[0],self._chart_area.bottom+self.pos[1]])
             if self.fmtYTicks:
                 # Y Ticks
-                Line(points=[self._chart_area.left,self._chart_area.top,self._chart_area.left-6,self._chart_area.top])
-                Line(points=[self._chart_area.left,self._chart_area.midY,self._chart_area.left-6,self._chart_area.midY])
-                Line(points=[self._chart_area.left,self._chart_area.bottom,self._chart_area.left-6,self._chart_area.bottom])
+                Line(points=[self._chart_area.left+self.pos[0],self._chart_area.top+self.pos[1],
+                             self._chart_area.left-6+self.pos[0],self._chart_area.top+self.pos[1]])
+                Line(points=[self._chart_area.left+self.pos[0],self._chart_area.midY+self.pos[1],
+                             self._chart_area.left-6+self.pos[0],self._chart_area.midY+self.pos[1]])
+                Line(points=[self._chart_area.left+self.pos[0],self._chart_area.bottom+self.pos[1],
+                             self._chart_area.left-6+self.pos[0],self._chart_area.bottom+self.pos[1]])
                 for i,pos in enumerate(
                         [
                            [self._chart_area.left-self.YlabelSizes[0][0]/2.0-9, self._chart_area.top],
@@ -132,31 +140,35 @@ class kvChartPanel(Widget):
                            [self._chart_area.left-self.YlabelSizes[2][0]/2.0-9, self._chart_area.bottom]
                         ]
                                        ):
-                    self.Ylabels[i].pos = pos
+                    self.Ylabels[i].pos = [pos[0]+self.pos[0],pos[1]+self.pos[1]]
 
             if self.fmtXTicks:
                 # X Ticks
-                Line(points=[self._chart_area.left, self._chart_area.bottom, self._chart_area.left, self._chart_area.bottom-6])
-                Line(points=[self._chart_area.midX, self._chart_area.bottom, self._chart_area.midX, self._chart_area.bottom-6])
-                Line(points=[self._chart_area.right, self._chart_area.bottom, self._chart_area.right,self._chart_area.bottom-6])
+                Line(points=[self._chart_area.left+self.pos[0], self._chart_area.bottom+self.pos[1],
+                             self._chart_area.left+self.pos[0], self._chart_area.bottom-6+self.pos[1]])
+                Line(points=[self._chart_area.midX+self.pos[0], self._chart_area.bottom+self.pos[1],
+                             self._chart_area.midX+self.pos[0], self._chart_area.bottom-6+self.pos[1]])
+                Line(points=[self._chart_area.right+self.pos[0], self._chart_area.bottom+self.pos[1],
+                             self._chart_area.right+self.pos[0],self._chart_area.bottom-6+self.pos[1]])
                 print("X:",self.XlabelSizes)
                 for i,pos in enumerate([[self._chart_area.left, self._chart_area.bottom-self.XlabelSizes[0][1]/2.0-9],
                                        [self._chart_area.midX, self._chart_area.bottom-self.XlabelSizes[1][1]/2.0-9],
                                        [self._chart_area.right,self._chart_area.bottom-self.XlabelSizes[2][1]/2.0-9]]
                                        ):
-                    self.Xlabels[i].pos = pos
+                    self.Xlabels[i].pos = [pos[0]+self.pos[0],pos[1]+self.pos[1]]
             for trace_pk,trace in self.traces:
                 if trace.config.get('color') is None and trace_pk not in self.trace_colors:
                     trace.config['color'] = next(self.colors)
-
+                if trace_pk in self.hidden_traces:
+                    continue
                 trace_color = trace.config['color']
                 print(trace_color)
                 Color(*trace_color)
                 for line in trace.split_points():
                     if len(line) == 0:
                         continue
-                    line[:, 1] = line[:, 1] * self._chart_area.height + self._chart_area.top
-                    line[:, 0] = line[:, 0] * self._chart_area.width + self._chart_area.left
+                    line[:, 1] = line[:, 1] * self._chart_area.height + self._chart_area.top + self.pos[1]
+                    line[:, 0] = line[:, 0] * self._chart_area.width + self._chart_area.left + self.pos[0]
 
                     if len(line) == 1:
                         p = [line[0][0]-3,line[0][1]-3]
@@ -166,9 +178,20 @@ class kvChartPanel(Widget):
     def add_points(self,points_xy,traceID=0):
         self.chart.add_points(points_xy,traceID)
 
-    def on_size(self, event,*args):
-        self.prepare_paint()
+    def on_update(self, event,*args):
+        print("SELF:",self.size,self.pos)
         self.Refresh()
+    def toggle_trace(self,tracePk):
+        if self.is_trace_hidden(tracePk):
+            self.show_trace(tracePk)
+        else:
+            self.hide_trace(tracePk)
+    def is_trace_hidden(self,tracePk):
+        return not self.chart._traces[tracePk].visible
+    def hide_trace(self,tracePk):
+        self.show_trace(tracePk,False)
+    def show_trace(self,tracePk,show=True):
+        self.chart.show_trace(tracePk,show)
 
     def prepare_paint(self):
         self.axis = self.chart.get_axis(0)

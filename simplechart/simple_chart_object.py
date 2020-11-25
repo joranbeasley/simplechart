@@ -2,14 +2,22 @@ import numpy
 
 class Trace(object):
     def __init__(self,axis,trace_id,name="",config=None):
+        self.hidden = False
+        print("INIT!!!")
         self.axis = axis
         if trace_id in self.axis.traces:
-            raise TypeError("This Trace ID is already in use!!!")
+            raise TypeError("This Trace ID is already in use in this axis!!!")
+        elif trace_id in self.axis.chart._traces:
+            raise TypeError("This TraceID is already in use in this chart")
+        self.axis.chart._traces[trace_id] = self
         self.axis.traces[trace_id] = self
         self.type = type
         self.name = name
         self.config = config or {}
         self.chart = axis.chart
+        if trace_id in self.chart._unknownHiddenTraces:
+            self.chart._unknownHiddenTraces.remove(trace_id)
+            self.hidden = True
         self._points = numpy.array([])
         self.xRange = [-1,1]
         self.yRange = [-1,1]
@@ -64,6 +72,8 @@ class Trace(object):
         # print(self.points,points,xRange)
         return points.T
 
+    def clear_data_before_x(self, minX):
+        self.points = self.points[self.points[:,0] >= minX]
     def split_points(self,translated=True,invertY=True):
         if len(self.points) > 0:
             if translated:
@@ -87,6 +97,8 @@ class RectangleArea:
         self.height = self.bottom - self.top
         self.midX = (self.right+self.left)/2.0
         self.midY = (self.top+self.bottom)/2.0
+
+
     def __getattr__(self, item):
         if item in 'x y left top bottom right':
            return {
@@ -175,8 +187,18 @@ class Axis(object):
 
 class SimpleChartObject(object):
     def __init__(self):
-        self._axes = {0:Axis(self)}
-        self._traces = {0:Trace(self._axes[0],0)}
+        self._unknownHiddenTraces = set()
+        self._axes = {}
+        self._traces = {}
+
+
+    def show_trace(self,tracePk,show=True):
+        if tracePk in self._traces:
+            self._traces[tracePk].visible = show
+        elif show is False:
+            self._unknownHiddenTraces.add(tracePk)
+    def hide_trace(self,tracePk):
+        self.show_trace(tracePk,False)
     def add_axis(self,name=""):
         self._axes[len(self._axes)] = Axis(self,name)
     def configure_trace(self,traceId,color=None,name=None,type=None):
@@ -192,7 +214,12 @@ class SimpleChartObject(object):
         if traceID not in self._traces:
             self._traces[traceID] = Trace(self._axes[0],traceID)
         self._traces[traceID].add_point(x,y)
+    def clear_data_before_minX(self,minX):
+        for t in self._traces:
+            t.clear_data_before_x(minX)
     def get_axis(self,axisId):
+        if axisId not in self._axes:
+            self._axes[axisId] = Axis(self)
         return self._axes[axisId]
     def add_points(self,points_xy,traceID=0):
         if traceID not in self._traces:
