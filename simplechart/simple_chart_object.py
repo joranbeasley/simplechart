@@ -2,7 +2,7 @@ import numpy
 
 class Trace(object):
     def __init__(self,axis,trace_id,name="",config=None):
-        self.hidden = False
+        self.visible = True
         print("INIT!!!")
         self.axis = axis
         if trace_id in self.axis.traces:
@@ -16,12 +16,13 @@ class Trace(object):
         self.config = config or {}
         self.chart = axis.chart
         if trace_id in self.chart._unknownHiddenTraces:
+            print("I should hide:",trace_id)
             self.chart._unknownHiddenTraces.remove(trace_id)
-            self.hidden = True
+            self.visible = False
         self._points = numpy.array([])
         self.xRange = [-1,1]
         self.yRange = [-1,1]
-        self.visible = True
+
         self.dirty = True
 
     @property
@@ -196,6 +197,7 @@ class SimpleChartObject(object):
         if tracePk in self._traces:
             self._traces[tracePk].visible = show
         elif show is False:
+            print("Schedule trace to hide!")
             self._unknownHiddenTraces.add(tracePk)
     def hide_trace(self,tracePk):
         self.show_trace(tracePk,False)
